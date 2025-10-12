@@ -7,8 +7,9 @@ import { PlayerControls } from './player-controls';
 import { ProviderSelector } from './provider-selector';
 import { ImmersionSelector } from './immersion-selector';
 import { AudioChunk, PlaybackState, TTSProvider, ImmersionMode } from '@/lib/types';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { ShareButton } from './share-button';
 
 interface ReaderLayoutProps {
   text: string;
@@ -190,21 +191,30 @@ export function ReaderLayout({
       {isImmersive && (
         <div className="fixed top-0 left-0 right-0 z-20 px-6 py-4">
           <div className="flex items-center justify-between">
-            <h1 className={`text-lg font-semibold ${showImage ? 'text-white drop-shadow-lg' : ''}`}>
+            <h1 className={`text-lg font-semibold ${showImage ? 'text-white drop-shadow-lg' : 'text-foreground'}`}>
               OpenReader
             </h1>
-            <button
-              onClick={() => {
-                onTextChange('');
-              }}
-              className={`text-sm transition-colors px-3 py-1.5 rounded-md ${
-                showImage 
-                  ? 'text-white/70 hover:text-white hover:bg-white/10 drop-shadow-lg' 
-                  : 'text-white hover:text-white hover:bg-secondary'
-              }`}
-            >
-              ← New Text
-            </button>
+            <div className="flex items-center gap-2">
+              <ShareButton 
+                text={text} 
+                immersionMode={immersionMode} 
+                disabled={!text}
+                isDarkBackground={!!showImage}
+              />
+              <button
+                onClick={() => {
+                  onTextChange('');
+                }}
+                className={`text-sm transition-colors px-3 py-1.5 rounded-md flex items-center gap-2 ${
+                  showImage 
+                    ? 'text-white/70 hover:text-white hover:bg-white/10 drop-shadow-lg' 
+                    : 'text-foreground/70 hover:text-foreground hover:bg-secondary'
+                }`}
+              >
+                <RotateCcw className="h-4 w-4" />
+                New Text
+              </button>
+            </div>
           </div>
         </div>
       )}

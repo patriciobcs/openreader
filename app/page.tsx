@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { ReaderLayout } from '@/components/reader/reader-layout';
 import { AudioChunk, ImmersionMode, TTSProvider } from '@/lib/types';
 import { chunkText } from '@/lib/text-utils';
@@ -15,6 +16,7 @@ On the night of the ball, as Cinderella sat crying in the garden, her fairy godm
 const WORDS_PER_CHUNK = 1000; // For ElevenLabs: generate entire text as one chunk (no cuts!)
 
 export default function Home() {
+  const searchParams = useSearchParams();
   const [text, setText] = useState('');
   const [chunks, setChunks] = useState<AudioChunk[]>([]);
   const [isDemo, setIsDemo] = useState(false);
@@ -28,11 +30,45 @@ export default function Home() {
   const [sceneVideos, setSceneVideos] = useState<Map<number, string>>(new Map());
   const [currentScene, setCurrentScene] = useState(0);
   const [immersionVideoUrl, setImmersionVideoUrl] = useState<string | null>(null);
+  const hasLoadedSharedRef = useRef(false);
+  const pendingSharedModeRef = useRef<ImmersionMode | null>(null);
 
   // Stable callback for chunk updates to prevent unnecessary re-renders
   const handleChunksUpdate = useCallback((newChunks: AudioChunk[]) => {
     setChunks(newChunks);
   }, []);
+
+  // Load shared content from URL params on mount
+  useEffect(() => {
+    if (hasLoadedSharedRef.current) return;
+    
+    const sharedText = searchParams.get('text');
+    const sharedMode = searchParams.get('mode') as ImmersionMode | null;
+    
+    if (sharedText) {
+      hasLoadedSharedRef.current = true;
+      console.log('📥 Loading shared content');
+      
+      try {
+        // Decode base64 text
+        const decodedText = decodeURIComponent(atob(sharedText));
+        setText(decodedText);
+        
+        // Create chunks
+        const newChunks = chunkText(decodedText, WORDS_PER_CHUNK);
+        setChunks(newChunks);
+        
+        // Store immersion mode to be applied after everything loads
+        if (sharedMode && ['focus', 'ambient', 'vivid', 'theater'].includes(sharedMode)) {
+          pendingSharedModeRef.current = sharedMode;
+        }
+        
+        console.log('✅ Shared content loaded');
+      } catch (error) {
+        console.error('Failed to load shared content:', error);
+      }
+    }
+  }, [searchParams]);
 
   const {
     currentWordIndex,
@@ -342,6 +378,20 @@ export default function Home() {
       }
     }
   }, [text, createScenes]);
+
+  // Apply pending shared immersion mode once chunks are loaded
+  useEffect(() => {
+    if (pendingSharedModeRef.current && chunks.length > 0 && playbackState === 'idle') {
+      const mode = pendingSharedModeRef.current;
+      pendingSharedModeRef.current = null;
+      console.log(`🔗 Applying shared immersion mode: ${mode}`);
+      
+      // Wait a bit for chunks to be processed
+      setTimeout(() => {
+        handleImmersionChange(mode);
+      }, 1000);
+    }
+  }, [chunks, playbackState, handleImmersionChange]);
 
   const handleUseDemo = useCallback(() => {
     console.log('🎬 Use Demo clicked');

@@ -19,7 +19,7 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended';
 
 export type TTSProvider = 'slng' | 'elevenlabs';
 
-export type ImmersionMode = 'focus' | 'ambient' | 'vivid' | 'theater';
+export type ImmersionMode = 'focus' | 'ambient' | 'vivid' | 'theater' | 'cinematic';
 
 export interface ElevenLabsAlignment {
   characters: string[];
