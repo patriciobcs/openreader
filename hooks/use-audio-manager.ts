@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { AudioChunk, PlaybackState, TTSProvider } from '@/lib/types';
 import { getCurrentWordIndex, updateChunkWithTiming } from '@/lib/text-utils';
 import {
@@ -570,6 +570,80 @@ export function useAudioManager({
     }
   }, [chunks, currentChunkIndex, playbackState, playbackSpeed]);
 
+  const seekToTime = useCallback((time: number) => {
+    console.log('⏱️ Seeking to time:', time.toFixed(2) + 's');
+    
+    // Find which chunk contains this time
+    let targetChunkIndex = 0;
+    let timeInChunk = 0;
+    let accumulatedTime = 0;
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunkDuration = chunks[i].duration || 0;
+      
+      if (time >= accumulatedTime && time < accumulatedTime + chunkDuration) {
+        targetChunkIndex = i;
+        timeInChunk = time - accumulatedTime;
+        break;
+      }
+      
+      accumulatedTime += chunkDuration;
+    }
+    
+    console.log(`📍 Found time in chunk ${targetChunkIndex} at offset ${timeInChunk.toFixed(2)}s`);
+    
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const targetChunk = chunks[targetChunkIndex];
+    const audioUrl = audioUrlsRef.current.get(targetChunkIndex) || targetChunk?.audioUrl;
+    
+    if (audioUrl) {
+      // Load the chunk if it's different
+      if (targetChunkIndex !== currentChunkIndex) {
+        console.log(`🔄 Switching to chunk ${targetChunkIndex}`);
+        audio.src = audioUrl;
+        audio.playbackRate = playbackSpeed;
+        setCurrentChunkIndex(targetChunkIndex);
+      }
+      
+      // Seek to the time within the chunk
+      audio.currentTime = timeInChunk;
+      
+      // Find the corresponding word index
+      const word = targetChunk.words.find((w, idx) => {
+        return timeInChunk >= w.startTime && timeInChunk < w.endTime;
+      });
+      if (word) {
+        setCurrentWordIndex(word.index);
+      }
+      
+      // Start playing if not already
+      if (playbackState !== 'playing') {
+        setPlaybackState('playing');
+        audio.play().catch(err => {
+          console.error('Play error after seek:', err.message);
+          setPlaybackState('paused');
+        });
+      }
+      
+      console.log('✅ Seeked to time successfully');
+    } else {
+      console.warn('⚠️ Target chunk not loaded yet');
+    }
+  }, [chunks, currentChunkIndex, playbackState, playbackSpeed]);
+
+  // Calculate loaded progress percentage
+  const loadedProgress = useMemo(() => {
+    if (chunks.length === 0) return 0;
+    
+    const loadedChunks = chunks.filter((chunk, index) => 
+      chunk.audioUrl || audioUrlsRef.current.has(index)
+    ).length;
+    
+    return (loadedChunks / chunks.length) * 100;
+  }, [chunks]);
+
   return {
     currentChunkIndex,
     currentWordIndex,
@@ -577,12 +651,14 @@ export function useAudioManager({
     playbackSpeed,
     currentTime,
     totalDuration,
+    loadedProgress,
     play,
     pause,
     skipForward,
     skipBackward,
     setSpeed,
     seekToWord,
+    seekToTime,
   };
 }
 

@@ -23,6 +23,8 @@ interface PlayerControlsProps {
   onSkipForward: () => void;
   onSkipBackward: () => void;
   onSpeedChange: (speed: number) => void;
+  onSeek?: (time: number) => void;
+  loadedProgress?: number;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -37,6 +39,8 @@ export function PlayerControls({
   onSkipForward,
   onSkipBackward,
   onSpeedChange,
+  onSeek,
+  loadedProgress = 100,
 }: PlayerControlsProps) {
   const isPlaying = playbackState === 'playing';
   const isLoading = playbackState === 'loading';
@@ -67,13 +71,32 @@ export function PlayerControls({
         {/* Progress and Time */}
         <div className="flex-1 flex items-center gap-2">
           <span className="text-[9px] text-muted-foreground/70 w-8 text-right">{formatTime(currentTime)}</span>
-          <Slider
-            value={[progress]}
-            max={100}
-            step={0.1}
-            disabled={isIdle}
-            className="flex-1"
-          />
+          
+          {/* Slider with loading progress */}
+          <div className="flex-1 relative">
+            {/* Background - loaded progress (YouTube-style) */}
+            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 rounded-full bg-muted overflow-hidden pointer-events-none">
+              <div 
+                className="h-full bg-muted-foreground/30 transition-all duration-300"
+                style={{ width: `${loadedProgress}%` }}
+              />
+            </div>
+            
+            {/* Slider on top */}
+            <Slider
+              value={[currentTime]}
+              max={totalDuration || 100}
+              step={0.1}
+              disabled={isIdle}
+              onValueChange={(value) => {
+                if (onSeek && value[0] !== undefined) {
+                  onSeek(value[0]);
+                }
+              }}
+              className="relative z-10"
+            />
+          </div>
+          
           <span className="text-[9px] text-muted-foreground/70 w-8">{formatTime(totalDuration)}</span>
         </div>
 

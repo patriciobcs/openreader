@@ -32,12 +32,14 @@ export default function Home() {
     playbackSpeed,
     currentTime,
     totalDuration,
+    loadedProgress,
     play,
     pause,
     skipForward,
     skipBackward,
     setSpeed,
     seekToWord,
+    seekToTime,
   } = useAudioManager({
     chunks,
     onChunksUpdate: handleChunksUpdate,
@@ -114,6 +116,8 @@ export default function Home() {
       onSpeedChange={setSpeed}
       onProviderChange={handleProviderChange}
       onWordClick={seekToWord}
+      onSeek={seekToTime}
+      loadedProgress={loadedProgress}
     />
   );
 }
