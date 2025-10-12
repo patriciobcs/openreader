@@ -59,7 +59,7 @@ export default function Home() {
         setChunks(newChunks);
         
         // Store immersion mode to be applied after everything loads
-        if (sharedMode && ['focus', 'ambient', 'vivid', 'theater'].includes(sharedMode)) {
+        if (sharedMode && ['focus', 'ambient', 'vivid', 'theater', 'cinematic'].includes(sharedMode)) {
           pendingSharedModeRef.current = sharedMode;
         }
         
@@ -112,6 +112,28 @@ export default function Home() {
     const sceneIndex = Math.floor(currentWordIndex / WORDS_PER_SCENE);
     
     if (sceneIndex !== currentScene) {
+      // Check if next scene's resources are available
+      const hasNextImage = sceneImages.has(sceneIndex);
+      const hasNextVideo = sceneVideos.has(sceneIndex);
+      
+      // For cinematic mode, only advance if video is ready, otherwise loop current video
+      if (immersionMode === 'cinematic' && !hasNextVideo) {
+        console.log(`🔄 Scene ${sceneIndex} video not ready yet, continuing to loop scene ${currentScene} video`);
+        return; // Don't advance, keep looping current video
+      }
+      
+      // For theater mode, only advance if both image and video are ready
+      if (immersionMode === 'theater' && (!hasNextImage || !hasNextVideo)) {
+        console.log(`🔄 Scene ${sceneIndex} not ready yet (image: ${hasNextImage}, video: ${hasNextVideo}), staying on scene ${currentScene}`);
+        return; // Don't advance, keep current scene
+      }
+      
+      // For other modes with images, only advance if image is ready
+      if ((immersionMode === 'ambient' || immersionMode === 'vivid') && !hasNextImage) {
+        console.log(`🔄 Scene ${sceneIndex} image not ready yet, staying on scene ${currentScene}`);
+        return; // Don't advance, keep current image
+      }
+      
       console.log(`🎬 Scene changed: ${currentScene} → ${sceneIndex}`);
       setCurrentScene(sceneIndex);
       
@@ -120,12 +142,12 @@ export default function Home() {
         setImmersionImageUrl(sceneImages.get(sceneIndex)!);
       }
       
-      // Update video for theater mode
+      // Update video for theater/cinematic modes
       if (sceneVideos.has(sceneIndex)) {
         setImmersionVideoUrl(sceneVideos.get(sceneIndex)!);
       }
     }
-  }, [currentWordIndex, text, sceneImages, sceneVideos, currentScene]);
+  }, [currentWordIndex, text, sceneImages, sceneVideos, currentScene, immersionMode]);
 
   const handleTextChange = useCallback((newText: string) => {
     setText(newText);
@@ -200,8 +222,8 @@ export default function Home() {
     // Set pending mode (shows loading state)
     setPendingMode(mode);
     
-    // Generate images for ambient/vivid modes, or videos for theater mode
-    if ((mode === 'ambient' || mode === 'vivid' || mode === 'theater') && text) {
+    // Generate images for ambient/vivid modes, or videos for theater/cinematic mode
+    if ((mode === 'ambient' || mode === 'vivid' || mode === 'theater' || mode === 'cinematic') && text) {
       setIsGeneratingImage(true);
       const scenes = createScenes(text);
       console.log(`📸 Generating ${scenes.length} scenes for ${mode} mode`);
@@ -210,7 +232,129 @@ export default function Home() {
       const newSceneVideos = new Map<number, string>();
       
       try {
-        if (mode === 'theater') {
+        if (mode === 'cinematic') {
+          // For cinematic mode, generate character portrait images + full talking videos using VEED Fabric
+          console.log('🎬 Generating character portraits + fabric videos for cinematic mode...');
+          
+          let firstSceneReady = false;
+          
+          const contentPromises = scenes.map(async (sceneText, index) => {
+            // Generate character portrait image
+            const imagePromise = fetch('/api/immersion', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ 
+                text: sceneText, 
+                mode: 'cinematic',
+                // Special prompt for character portraits
+                customPrompt: `cinematic portrait of a character from this story, photorealistic, dramatic lighting, 4k, detailed facial features: ${sceneText.substring(0, 200)}`
+              }),
+            }).then(res => res.ok ? res.json() : null);
+            
+            // Generate TTS audio first, then fabric video
+            const videoPromise = (async () => {
+              const ttsResponse = await fetch('/api/tts', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  text: sceneText,
+                  provider: 'elevenlabs',
+                }),
+              });
+              
+              if (!ttsResponse.ok) return null;
+              
+              const ttsData = await ttsResponse.json();
+              console.log(`📦 TTS response for scene ${index}:`, { hasAudio: !!ttsData.audio });
+              
+              if (!ttsData.audio) {
+                console.error(`❌ No audio data in TTS response for scene ${index}`);
+                return null;
+              }
+              
+              // Wait for image to be ready first (we need it for fabric)
+              const imageData = await imagePromise;
+              if (!imageData?.imageUrl) {
+                console.error(`❌ No image URL for scene ${index}`);
+                return null;
+              }
+              
+              console.log(`🎥 Calling fabric API for scene ${index} with image + audio`);
+              
+              const fabricResponse = await fetch('/api/fabric', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                  imageUrl: imageData.imageUrl,
+                  audioData: ttsData.audio,
+                  sceneIndex: index 
+                }),
+              });
+              
+              if (!fabricResponse.ok) {
+                const errorText = await fabricResponse.text();
+                console.error(`❌ Fabric API error for scene ${index}:`, {
+                  status: fabricResponse.status,
+                  statusText: fabricResponse.statusText,
+                  body: errorText,
+                });
+                return null;
+              }
+              
+              return fabricResponse.json();
+            })();
+            
+            const [imageData, videoData] = await Promise.all([imagePromise, videoPromise]);
+            
+            const result = {
+              index,
+              imageUrl: imageData?.imageUrl,
+              videoUrl: videoData?.videoUrl,
+            };
+            
+            // As soon as first scene is ready, activate the mode
+            if (index === 0 && !firstSceneReady && result.imageUrl && result.videoUrl) {
+              firstSceneReady = true;
+              console.log('✅ First scene ready, activating cinematic mode');
+              setSceneImages(new Map([[0, result.imageUrl]]));
+              setSceneVideos(new Map([[0, result.videoUrl]]));
+              setCurrentScene(0);
+              setImmersionImageUrl(result.imageUrl);
+              setImmersionVideoUrl(result.videoUrl);
+              setImmersionMode(mode);
+              setPendingMode(null);
+            }
+            
+            // For subsequent scenes, add them as they become ready
+            if (index > 0 && result.imageUrl && result.videoUrl) {
+              console.log(`✅ Scene ${index} ready, adding to maps`);
+              setSceneImages(prev => new Map(prev).set(index, result.imageUrl!));
+              setSceneVideos(prev => new Map(prev).set(index, result.videoUrl!));
+            }
+            
+            return result;
+          });
+          
+          // Wait for all to complete in background
+          const results = await Promise.all(contentPromises);
+          
+          // Final update with all scenes
+          results.forEach(result => {
+            if (result) {
+              if (result.imageUrl) {
+                newSceneImages.set(result.index, result.imageUrl);
+              }
+              if (result.videoUrl) {
+                newSceneVideos.set(result.index, result.videoUrl);
+              }
+            }
+          });
+          
+          setSceneImages(newSceneImages);
+          setSceneVideos(newSceneVideos);
+          
+          console.log(`✨ All scenes ready: ${newSceneImages.size} images + ${newSceneVideos.size} videos`);
+        } else if (mode === 'theater') {
           // For theater mode, generate BOTH background images (like vivid) AND lipsync videos
           console.log('🎬 Generating background images + lipsync videos for theater mode...');
           
@@ -355,9 +499,9 @@ export default function Home() {
           console.log(`✨ Generated ${newSceneImages.size} scene images`);
         }
         
-        // For non-theater modes, activate the mode once resources are ready
-        // (Theater mode activates early, as soon as first scene is ready)
-        if (mode !== 'theater') {
+        // For non-theater/cinematic modes, activate the mode once resources are ready
+        // (Theater and Cinematic modes activate early, as soon as first scene is ready)
+        if (mode !== 'theater' && mode !== 'cinematic') {
           console.log(`✅ Activating ${mode} mode with resources:`, {
             sceneImages: newSceneImages.size,
             sceneVideos: newSceneVideos.size,
@@ -367,7 +511,7 @@ export default function Home() {
           setImmersionMode(mode);
           setPendingMode(null);
         } else {
-          console.log(`✅ Theater mode already activated, all ${newSceneImages.size} scenes now available`);
+          console.log(`✅ ${mode} mode already activated, all ${newSceneImages.size} scenes now available`);
         }
         
       } catch (error) {

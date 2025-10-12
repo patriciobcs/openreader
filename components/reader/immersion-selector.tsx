@@ -1,7 +1,7 @@
 'use client';
 
 import { ImmersionMode } from '@/lib/types';
-import { BookOpen, Sparkles, Image, Film } from 'lucide-react';
+import { BookOpen, Sparkles, Image, Film, Clapperboard } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ImmersionSelectorProps {
@@ -31,6 +31,11 @@ const IMMERSION_PRESETS = [
     id: 'theater' as ImmersionMode,
     name: 'Theater',
     icon: Film,
+  },
+  {
+    id: 'cinematic' as ImmersionMode,
+    name: 'Cinematic',
+    icon: Clapperboard,
   },
 ];
 

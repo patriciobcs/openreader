@@ -27,7 +27,7 @@ function hashText(text: string): string {
 
 export async function POST(request: NextRequest) {
   try {
-    const { text, mode } = await request.json();
+    const { text, mode, customPrompt } = await request.json();
 
     if (!text) {
       return NextResponse.json(
@@ -70,7 +70,10 @@ export async function POST(request: NextRequest) {
     let width = 1024;
     let height = 768;
     
-    if (mode === 'ambient') {
+    // Use customPrompt if provided, otherwise generate based on mode
+    if (customPrompt) {
+      prompt = customPrompt;
+    } else if (mode === 'ambient') {
       prompt = `Artistic illustration of: "${textExcerpt}". Soft, elegant, minimalist style, gentle colors, serene atmosphere, highly detailed, suitable for text overlay`;
       width = 1024;
       height = 576; // 16:9 aspect ratio for ambient mode (divisible by 64)
@@ -82,6 +85,10 @@ export async function POST(request: NextRequest) {
       prompt = `Epic cinematic scene: "${textExcerpt}". Dramatic lighting, rich colors, movie poster style, highly detailed, photorealistic. Note: Text will overlay this image.`;
       width = 1024;
       height = 768;
+    } else if (mode === 'cinematic') {
+      prompt = `Cinematic portrait of a character from this story: "${textExcerpt}". Photorealistic, dramatic lighting, detailed facial features, 4k quality, professional headshot, ready for animation`;
+      width = 1024;
+      height = 1024; // Square for character portraits
     }
 
     // Generate unique task UUID

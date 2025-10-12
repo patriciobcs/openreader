@@ -88,6 +88,23 @@ const IMMERSION_STYLES = {
       textColor: '#000000',
     },
   },
+  cinematic: {
+    container: {
+      background: 'transparent', // No background in cinematic mode
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none',
+      boxShadow: 'none',
+    },
+    text: {
+      base: '#FFFFFF',
+      read: '#FFFFFF',
+      unread: 'rgba(255, 255, 255, 0.5)',
+    },
+    cursor: {
+      bg: '#FFFFFF',
+      textColor: '#000000',
+    },
+  },
 };
 
 // Individual word component with smooth sliding cursor
@@ -173,8 +190,9 @@ export const ReaderDisplay = memo(function ReaderDisplay({
     
     // Define margins based on mode
     // In ambient mode, account for sticky image at top
+    // In cinematic mode, keep text visible above the bottom text overlay area
     const topMargin = immersionMode === 'ambient' ? 380 : 120;
-    const bottomMargin = immersionMode === 'ambient' ? 200 : 200;
+    const bottomMargin = immersionMode === 'ambient' ? 200 : immersionMode === 'cinematic' ? 300 : 200;
     
     // Calculate the center zone where we want the cursor to stay
     // Start scrolling when word approaches the middle third of the viewport
@@ -201,6 +219,18 @@ export const ReaderDisplay = memo(function ReaderDisplay({
         
         container.scrollTo({
           top: Math.max(0, scrollOffset),
+          behavior: 'smooth'
+        });
+      } else if (immersionMode === 'cinematic') {
+        // For cinematic mode, scroll to keep text visible above bottom overlay
+        const elementTop = wordElement.offsetTop;
+        const containerHeight = container.clientHeight;
+        
+        // Position word at 35% from top to keep it well above bottom overlay
+        const targetScrollTop = elementTop - (containerHeight * 0.35);
+        
+        container.scrollTo({
+          top: Math.max(0, targetScrollTop),
           behavior: 'smooth'
         });
       } else {

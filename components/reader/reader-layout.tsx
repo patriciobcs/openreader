@@ -72,6 +72,9 @@ export function ReaderLayout({
   // Video element ref for controlling playback
   const videoRef = useRef<HTMLVideoElement>(null);
   
+  // Track video restart to prevent multiple restarts
+  const isRestartingRef = useRef(false);
+  
   // Track which images have been loaded
   const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
   const [loadedVideos, setLoadedVideos] = useState<Set<string>>(new Set());
@@ -119,6 +122,7 @@ export function ReaderLayout({
     
     // Reset video to start when URL changes
     video.currentTime = 0;
+    isRestartingRef.current = false; // Reset the restart flag for new video
     console.log('🔄 Video reset for new scene');
   }, [immersionVideoUrl]);
   
@@ -140,7 +144,7 @@ export function ReaderLayout({
   
   // Theater mode uses BOTH image background (like vivid) AND video narrator
   const showImage = immersionImageUrl && (immersionMode === 'vivid' || immersionMode === 'theater') && isImageLoaded;
-  const showVideo = immersionVideoUrl && immersionMode === 'theater' && isVideoLoaded;
+  const showVideo = immersionVideoUrl && (immersionMode === 'theater' || immersionMode === 'cinematic') && isVideoLoaded;
 
   return (
     <div className="min-h-screen bg-background relative overflow-hidden">
@@ -180,7 +184,8 @@ export function ReaderLayout({
       {/* Loading indicator when waiting for images/videos to load */}
       {!isGeneratingImage && ((immersionMode === 'vivid' && immersionImageUrl && !isImageLoaded) ||
         (immersionMode === 'ambient' && immersionImageUrl && !isImageLoaded) ||
-        (immersionMode === 'theater' && ((immersionImageUrl && !isImageLoaded) || (immersionVideoUrl && !isVideoLoaded)))) && (
+        (immersionMode === 'theater' && ((immersionImageUrl && !isImageLoaded) || (immersionVideoUrl && !isVideoLoaded))) ||
+        (immersionMode === 'cinematic' && immersionVideoUrl && !isVideoLoaded)) && (
         <div className="fixed top-20 right-4 z-50 flex items-center gap-2 px-3 py-2 bg-black/80 text-white rounded-lg text-sm">
           <Loader2 className="h-4 w-4 animate-spin" />
           <span>Loading scene...</span>
@@ -284,8 +289,112 @@ export function ReaderLayout({
                       </div>
                     )}
                     
-                    {/* Theater Mode Layout - Video narrator on the side with full-screen background (like Vivid + Video) */}
-                    {immersionMode === 'theater' && immersionVideoUrl ? (
+                    {/* Cinematic Mode Layout - Full-screen talking video with text overlaid */}
+                    {immersionMode === 'cinematic' && immersionVideoUrl ? (
+                      <div className="fixed inset-0 z-10 flex flex-col">
+                        {/* Full-Screen Talking Video */}
+                        <div
+                          key={immersionVideoUrl}
+                          className="flex-1 relative overflow-hidden"
+                        >
+                          {!isVideoLoaded && (
+                            <div className="absolute inset-0 flex items-center justify-center bg-black">
+                              <Loader2 className="h-12 w-12 animate-spin text-white" />
+                            </div>
+                          )}
+                          <video
+                            ref={videoRef}
+                            key={immersionVideoUrl}
+                            src={immersionVideoUrl}
+                            className={cn(
+                              "w-full h-full object-cover transition-opacity duration-500",
+                              isVideoLoaded ? "opacity-100" : "opacity-0"
+                            )}
+                            muted
+                            playsInline
+                            onLoadedData={() => {
+                              console.log('✅ Cinematic video loaded:', immersionVideoUrl);
+                              console.log('📊 Video duration:', videoRef.current?.duration, 'seconds');
+                              setLoadedVideos(prev => new Set(prev).add(immersionVideoUrl));
+                              if (playbackState === 'playing') {
+                                videoRef.current?.play().catch(err => {
+                                  console.warn('Video auto-play failed:', err);
+                                });
+                              }
+                            }}
+                            onError={(e) => {
+                              console.error('❌ Video load error:', e);
+                            }}
+                            onEnded={() => {
+                              console.log('🔄 Cinematic video ended, restarting from beginning...');
+                              const video = videoRef.current;
+                              if (video && !isRestartingRef.current) {
+                                isRestartingRef.current = true;
+                                console.log('  - Video currentTime:', video.currentTime);
+                                console.log('  - Video duration:', video.duration);
+                                console.log('  - Resetting currentTime to 0');
+                                video.currentTime = 0;
+                                console.log('  - Attempting to play again...');
+                                video.play()
+                                  .then(() => {
+                                    console.log('✅ Video successfully restarted');
+                                    isRestartingRef.current = false;
+                                  })
+                                  .catch(err => {
+                                    console.error('❌ Video restart failed:', err);
+                                    isRestartingRef.current = false;
+                                  });
+                              }
+                            }}
+                            onTimeUpdate={() => {
+                              // Force loop by checking if we're near the end
+                              const video = videoRef.current;
+                              if (video && video.duration && video.currentTime >= video.duration - 0.05 && !isRestartingRef.current) {
+                                console.log('🔄 Video near end (timeupdate), forcing restart...');
+                                console.log('  - currentTime:', video.currentTime, 'duration:', video.duration);
+                                isRestartingRef.current = true;
+                                video.currentTime = 0;
+                                if (playbackState === 'playing') {
+                                  video.play()
+                                    .then(() => {
+                                      console.log('✅ Video successfully restarted (timeupdate)');
+                                      isRestartingRef.current = false;
+                                    })
+                                    .catch(err => {
+                                      console.error('❌ Video force restart failed:', err);
+                                      isRestartingRef.current = false;
+                                    });
+                                } else {
+                                  isRestartingRef.current = false;
+                                }
+                              }
+                            }}
+                          />
+                          
+                          {/* Text Content Overlay at Bottom - No background */}
+                          <div className="absolute bottom-0 left-0 right-0 max-h-[40vh] overflow-y-auto scrollbar-hide">
+                            <div className="px-12 py-8 mx-auto max-w-4xl">
+                              <ReaderDisplay
+                                chunks={chunks}
+                                currentWordIndex={currentWordIndex}
+                                onWordClick={onWordClick}
+                                immersionMode="cinematic"
+                              />
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ) : immersionMode === 'cinematic' && immersionVideoUrl && !isVideoLoaded ? (
+                      /* Cinematic mode waiting for video to load - show normal layout temporarily */
+                      <div>
+                        <ReaderDisplay
+                          chunks={chunks}
+                          currentWordIndex={currentWordIndex}
+                          onWordClick={onWordClick}
+                          immersionMode="focus"
+                        />
+                      </div>
+                    ) : immersionMode === 'theater' && immersionVideoUrl ? (
                       <div className="flex gap-8 items-start max-w-7xl mx-auto">
                         {/* Sticky Video Narrator on the Left - Smaller size */}
                         <div
