@@ -236,7 +236,7 @@ export function ReaderLayout({
                        OpenReader
                      </h1>
                      <p className="text-muted-foreground">
-                       Transform your text into natural speech
+                       Transform any text content into immersive experiences
                      </p>
                    </div>
                  )}
@@ -487,7 +487,7 @@ export function ReaderLayout({
              {/* Footer */}
              {!hasContent && (
                <div className="mt-12 text-center text-sm text-muted-foreground">
-                 <p>Powered by ElevenLabs & SLNG TTS APIs</p>
+                 <p>Powered by ElevenLabs, SLNG.AI, LinkUp, Runwere.ai and VEED.io. Created by @patriciobcs for HackBarna.</p>
                </div>
              )}
            </>
