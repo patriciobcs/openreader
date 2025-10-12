@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { ReaderLayout } from '@/components/reader/reader-layout';
 import { AudioChunk } from '@/lib/types';
 import { chunkText } from '@/lib/text-utils';
@@ -18,6 +18,7 @@ export default function Home() {
   const [text, setText] = useState('');
   const [chunks, setChunks] = useState<AudioChunk[]>([]);
   const [isDemo, setIsDemo] = useState(false);
+  const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
 
   const {
     currentWordIndex,
@@ -36,6 +37,18 @@ export default function Home() {
     isDemo,
   });
 
+  // Auto-play when chunks are loaded
+  useEffect(() => {
+    if (shouldAutoPlay && chunks.length > 0 && playbackState === 'idle') {
+      console.log('🎬 Auto-playing with', chunks.length, 'chunks');
+      setShouldAutoPlay(false);
+      // Small delay to ensure everything is ready
+      setTimeout(() => {
+        play();
+      }, 50);
+    }
+  }, [chunks, shouldAutoPlay, playbackState, play]);
+
   const handleTextChange = useCallback((newText: string) => {
     setText(newText);
     if (newText.trim()) {
@@ -43,8 +56,10 @@ export default function Home() {
       console.log('Text changed, created chunks:', newChunks.length);
       setChunks(newChunks);
       setIsDemo(false);
+      setShouldAutoPlay(true);
     } else {
       setChunks([]);
+      setShouldAutoPlay(false);
     }
   }, []);
 
@@ -56,6 +71,7 @@ export default function Home() {
     console.log('First chunk:', newChunks[0]);
     setChunks(newChunks);
     setIsDemo(true);
+    setShouldAutoPlay(true);
   }, []);
 
   return (

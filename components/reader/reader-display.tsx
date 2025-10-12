@@ -23,8 +23,8 @@ export function ReaderDisplay({ chunks, currentWordIndex }: ReaderDisplayProps) 
       const containerRect = container.getBoundingClientRect();
       
       const isVisible = 
-        wordRect.top >= containerRect.top &&
-        wordRect.bottom <= containerRect.bottom;
+        wordRect.top >= containerRect.top + 100 &&
+        wordRect.bottom <= containerRect.bottom - 100;
       
       if (!isVisible) {
         wordElement.scrollIntoView({
@@ -39,41 +39,37 @@ export function ReaderDisplay({ chunks, currentWordIndex }: ReaderDisplayProps) 
   const allWords = chunks.flatMap(chunk => chunk.words);
 
   return (
-    <Card className="w-full">
-      <CardContent className="p-6">
-        <div
-          ref={containerRef}
-          className="prose prose-lg max-w-none overflow-y-auto max-h-[400px] leading-relaxed"
-        >
-          {allWords.length > 0 ? (
-            <div className="text-foreground">
-              {allWords.map((word, idx) => {
-                const isActive = idx === currentWordIndex;
-                return (
-                  <span
-                    key={`word-${idx}`}
-                    ref={isActive ? activeWordRef : null}
-                    className={`
-                      inline-block transition-all duration-200 px-1 py-0.5 rounded
-                      ${isActive 
-                        ? 'bg-primary text-primary-foreground font-medium scale-105' 
-                        : 'hover:bg-muted'
-                      }
-                    `}
-                  >
-                    {word.text}{' '}
-                  </span>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="text-center text-muted-foreground py-12">
-              Enter text above to get started
-            </div>
-          )}
+    <div
+      ref={containerRef}
+      className="w-full max-w-4xl mx-auto overflow-y-auto max-h-[70vh] px-6 py-4"
+    >
+      {allWords.length > 0 ? (
+        <div className="text-foreground text-lg md:text-xl leading-relaxed text-justify hyphens-auto">
+          {allWords.map((word, idx) => {
+            const isActive = idx === currentWordIndex;
+            return (
+              <span
+                key={`word-${idx}`}
+                ref={isActive ? activeWordRef : null}
+                className={`
+                  inline-block transition-all duration-75 px-1 py-0.5 mx-0.5 rounded
+                  ${isActive 
+                    ? 'bg-primary text-primary-foreground font-semibold scale-105 reader-word-active' 
+                    : 'text-foreground'
+                  }
+                `}
+              >
+                {word.text}
+              </span>
+            );
+          })}
         </div>
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="text-center text-muted-foreground py-12">
+          Loading text...
+        </div>
+      )}
+    </div>
   );
 }
 

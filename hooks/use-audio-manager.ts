@@ -41,7 +41,11 @@ export function useAudioManager({
       const currentChunk = chunks[currentChunkIndex];
       if (currentChunk && currentChunk.words.length > 0) {
         const wordIdx = getCurrentWordIndex(currentChunk.words, time);
-        setCurrentWordIndex(currentChunk.words[wordIdx]?.index ?? 0);
+        const globalIndex = currentChunk.words[wordIdx]?.index;
+        
+        if (globalIndex !== undefined) {
+          setCurrentWordIndex(globalIndex);
+        }
       }
     };
 
@@ -64,10 +68,13 @@ export function useAudioManager({
     const handleLoadedMetadata = () => {
       const duration = audio.duration;
       if (duration && !isNaN(duration)) {
-        // Update chunk with actual duration
+        // Update chunk with actual duration (always update for accuracy)
         const updatedChunks = [...chunks];
         const chunk = updatedChunks[currentChunkIndex];
-        if (chunk && chunk.duration === 0) {
+        if (chunk) {
+          console.log('⏱️ Updating timing for chunk', currentChunkIndex, 
+                     'from', chunk.duration.toFixed(2) + 's', 
+                     'to', duration.toFixed(2) + 's');
           updatedChunks[currentChunkIndex] = updateChunkWithTiming(chunk, duration);
           onChunksUpdate(updatedChunks);
         }
@@ -99,10 +106,28 @@ export function useAudioManager({
     const currentChunk = chunks[currentChunkIndex];
     if (!currentChunk || !audioRef.current) return;
 
+    const audio = audioRef.current;
+    
+    // Only update src and play if we need to
     if (currentChunk.audioUrl && playbackState === 'playing') {
-      audioRef.current.src = currentChunk.audioUrl;
-      audioRef.current.playbackRate = playbackSpeed;
-      audioRef.current.play().catch(console.error);
+      // Check if we're already playing this chunk
+      const currentSrc = audio.src;
+      const newSrc = currentChunk.audioUrl;
+      
+      if (currentSrc !== newSrc) {
+        console.log('📼 Loading new audio source for chunk:', currentChunkIndex);
+        audio.src = newSrc;
+        audio.playbackRate = playbackSpeed;
+        audio.play().catch(err => {
+          console.error('Play error:', err);
+        });
+      } else if (audio.paused) {
+        // Same source but paused, resume
+        console.log('▶️ Resuming playback');
+        audio.play().catch(err => {
+          console.error('Resume error:', err);
+        });
+      }
     }
   }, [currentChunkIndex, playbackState, playbackSpeed, chunks]);
 
@@ -162,19 +187,25 @@ export function useAudioManager({
         console.log('Received audio blob, size:', audioBlob.size);
         const audioUrl = URL.createObjectURL(audioBlob);
 
+        // Update chunks array without triggering unnecessary re-renders
         const finalChunks = [...chunks];
         finalChunks[chunkIndex] = {
           ...chunk,
           audioUrl,
           isLoading: false,
         };
-        onChunksUpdate(finalChunks);
+        
         console.log('Chunk loaded successfully:', chunkIndex);
         
-        // If this chunk should auto-play after loading, trigger playback
-        if (shouldAutoPlay) {
+        // Only trigger auto-play if this is the current chunk being loaded
+        if (shouldAutoPlay && chunkIndex === currentChunkIndex) {
           console.log('Auto-play triggered for chunk:', chunkIndex);
+          // Update chunks first, then trigger playback
+          onChunksUpdate(finalChunks);
           setPlaybackState('playing');
+        } else {
+          // Just update chunks without changing playback state
+          onChunksUpdate(finalChunks);
         }
       } catch (error) {
         console.error('Error loading chunk:', chunkIndex, error);
@@ -187,7 +218,7 @@ export function useAudioManager({
         onChunksUpdate(errorChunks);
       }
     },
-    [chunks, onChunksUpdate, isDemo]
+    [chunks, onChunksUpdate, isDemo, currentChunkIndex]
   );
 
   const play = useCallback(async () => {

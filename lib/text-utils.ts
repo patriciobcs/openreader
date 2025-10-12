@@ -11,17 +11,19 @@ export function chunkText(text: string, wordsPerChunk: number): AudioChunk[] {
     const chunkWords = words.slice(i, i + wordsPerChunk);
     const chunkText = chunkWords.join(' ');
     
+    // Estimate ~15 seconds per chunk (will be updated with actual duration)
+    const estimatedDuration = 15;
+    const timestamps = generateWordTimestamps(chunkWords, estimatedDuration);
+    
     chunks.push({
       id: `chunk-${i / wordsPerChunk}`,
       text: chunkText,
-      words: chunkWords.map((word, idx) => ({
-        text: word,
-        startTime: 0,
-        endTime: 0,
-        index: i + idx,
+      words: timestamps.map((ts, idx) => ({
+        ...ts,
+        index: i + idx, // Global index across all chunks
       })),
       audioUrl: null,
-      duration: 0,
+      duration: estimatedDuration,
       isLoading: false,
     });
   }
@@ -31,20 +33,31 @@ export function chunkText(text: string, wordsPerChunk: number): AudioChunk[] {
 
 /**
  * Generate word timestamps based on audio duration
- * Distributes time evenly across words (simple estimation)
+ * Distributes time across words based on word length (better estimation)
  */
 export function generateWordTimestamps(
   words: string[],
   duration: number
 ): WordInfo[] {
-  const timePerWord = duration / words.length;
+  // Calculate relative weights based on word length + base time
+  const weights = words.map(word => word.length + 2); // +2 for space/pause
+  const totalWeight = weights.reduce((sum, w) => sum + w, 0);
   
-  return words.map((word, index) => ({
-    text: word,
-    startTime: index * timePerWord,
-    endTime: (index + 1) * timePerWord,
-    index,
-  }));
+  let currentTime = 0;
+  
+  return words.map((word, index) => {
+    const wordDuration = (weights[index] / totalWeight) * duration;
+    const startTime = currentTime;
+    const endTime = currentTime + wordDuration;
+    currentTime = endTime;
+    
+    return {
+      text: word,
+      startTime,
+      endTime,
+      index,
+    };
+  });
 }
 
 /**
