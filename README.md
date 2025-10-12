@@ -10,7 +10,7 @@ A modern text-to-speech web application similar to ElevenReader, built with Next
 ⚡ **Efficient Chunking** - Process text in optimized chunks for smooth playback  
 🎯 **Smart Pre-loading** - Next chunk loads as current one plays  
 🎮 **Playback Controls** - Adjust speed, skip forward/backward, click-to-seek  
-🎨 **Immersive Modes** - Focus, Ambient (with AI-generated images), Vivid, and Theater modes  
+🎨 **Immersive Modes** - Focus, Ambient (AI-generated images), Vivid (full-screen backdrop), and Theater (AI-generated lipsync narrator)  
 💾 **Smart Caching** - Cached responses for faster demo playback and image generation  
 📱 **Responsive Design** - Works seamlessly on mobile and desktop
 
@@ -33,11 +33,15 @@ A modern text-to-speech web application similar to ElevenReader, built with Next
    
    # Required for URL content extraction
    LINKUP_API_KEY=your_linkup_api_key_here
+   
+   # Required for lipsync videos (Theater mode)
+   FAL_KEY=your_fal_api_key_here
    ```
    - Get SLNG API key at [slng.ai](https://slng.ai)
    - Get ElevenLabs API key at [elevenlabs.io](https://elevenlabs.io)
    - Get Runware API key at [runware.ai](https://runware.ai)
    - Get Linkup API key at [linkup.so](https://www.linkup.so)
+   - Get fal.ai API key at [fal.ai](https://fal.ai)
 
 3. **Run the development server:**
    ```bash
@@ -73,6 +77,7 @@ A modern text-to-speech web application similar to ElevenReader, built with Next
 - **Framer Motion** - Smooth animations
 - **ElevenLabs & SLNG APIs** - Text-to-speech engines
 - **Runware API** - AI image generation
+- **fal.ai API** - AI lipsync video generation
 - **Linkup API** - Web content extraction
 - **Bun** - Fast JavaScript runtime and package manager
 
@@ -87,6 +92,7 @@ For detailed setup instructions, architecture details, and troubleshooting, see 
 │   ├── api/
 │   │   ├── tts/          # TTS API endpoint
 │   │   ├── immersion/    # AI image generation
+│   │   ├── lipsync/      # AI lipsync video generation
 │   │   └── linkup/       # Web content extraction
 │   ├── page.tsx          # Main application
 │   └── layout.tsx        # Root layout
@@ -107,4 +113,4 @@ MIT
 
 ---
 
-Built with ❤️ using Next.js, ElevenLabs, SLNG, Runware, and Linkup
+Built with ❤️ using Next.js, ElevenLabs, SLNG, Runware, fal.ai, and Linkup

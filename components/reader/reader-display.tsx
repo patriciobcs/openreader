@@ -56,10 +56,10 @@ const IMMERSION_STYLES = {
   },
   vivid: {
     container: {
-      background: 'rgba(0, 0, 0, 0.4)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+      background: 'transparent',
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none',
+      boxShadow: 'none',
     },
     text: {
       base: '#FFFFFF',
@@ -73,10 +73,10 @@ const IMMERSION_STYLES = {
   },
   theater: {
     container: {
-      background: 'rgba(0, 0, 0, 0.4)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+      background: 'transparent', // No background in theater mode
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none',
+      boxShadow: 'none',
     },
     text: {
       base: '#FFFFFF',
@@ -171,17 +171,29 @@ export const ReaderDisplay = memo(function ReaderDisplay({
     const wordRect = wordElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     
+    // Define margins based on mode
     // In ambient mode, account for sticky image at top
-    // Smaller image: 280px max-height + 32px padding + 64px header ≈ 380px
-    const topMargin = immersionMode === 'ambient' ? 380 : 80;
-    // Increase bottom margin to account for player controls
-    const bottomMargin = immersionMode === 'ambient' ? 200 : 80;
+    const topMargin = immersionMode === 'ambient' ? 380 : 120;
+    const bottomMargin = immersionMode === 'ambient' ? 200 : 200;
     
-    const isVisible = 
+    // Calculate the center zone where we want the cursor to stay
+    // Start scrolling when word approaches the middle third of the viewport
+    const viewportHeight = containerRect.height;
+    const middleZoneTop = containerRect.top + (viewportHeight * 0.35); // 35% from top
+    const middleZoneBottom = containerRect.bottom - (viewportHeight * 0.35); // 35% from bottom
+    
+    // Check if word is in comfortable reading zone
+    const isInComfortZone = 
+      wordRect.top >= middleZoneTop &&
+      wordRect.bottom <= middleZoneBottom;
+    
+    // Also check minimum margins for safety (especially in ambient mode)
+    const hasMinimumMargins =
       wordRect.top >= containerRect.top + topMargin &&
       wordRect.bottom <= containerRect.bottom - bottomMargin;
     
-    if (!isVisible) {
+    // Scroll if word is outside comfort zone or too close to edges
+    if (!isInComfortZone || !hasMinimumMargins) {
       if (immersionMode === 'ambient') {
         // For ambient mode, scroll to position word below sticky image
         const elementTop = wordElement.offsetTop;
@@ -192,11 +204,17 @@ export const ReaderDisplay = memo(function ReaderDisplay({
           behavior: 'smooth'
         });
       } else {
-        // For other modes, center the word
-        wordElement.scrollIntoView({
-          behavior: 'smooth',
-          block: 'center',
-          inline: 'nearest'
+        // For other modes, smoothly position word in the comfortable middle zone
+        const elementTop = wordElement.offsetTop;
+        const containerScrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+        
+        // Calculate scroll position to place word at 40% from top (comfortable reading position)
+        const targetScrollTop = elementTop - (containerHeight * 0.4);
+        
+        container.scrollTo({
+          top: Math.max(0, targetScrollTop),
+          behavior: 'smooth'
         });
       }
     }
@@ -212,11 +230,13 @@ export const ReaderDisplay = memo(function ReaderDisplay({
   return (
     <div
       ref={containerRef}
-      className="w-full max-w-4xl mx-auto overflow-y-auto max-h-[65vh] px-16 rounded-xl"
+      className="w-full max-w-4xl mx-auto overflow-y-auto max-h-[65vh] px-16 rounded-xl scrollbar-hide"
       style={{
         ...modeStyles.container,
         paddingTop: '3rem',
         paddingBottom: '3rem',
+        scrollBehavior: 'smooth',
+        WebkitOverflowScrolling: 'touch', // Smooth scrolling on iOS
       }}
     >
         {allWords.length > 0 ? (

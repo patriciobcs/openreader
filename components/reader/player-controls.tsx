@@ -33,6 +33,7 @@ interface PlayerControlsProps {
   onSeek?: (time: number) => void;
   loadedProgress?: number;
   immersionMode?: ImmersionMode;
+  pendingMode?: ImmersionMode | null;
   onImmersionChange?: (mode: ImmersionMode) => void;
 }
 
@@ -51,6 +52,7 @@ export function PlayerControls({
   onSeek,
   loadedProgress = 100,
   immersionMode = 'focus',
+  pendingMode = null,
   onImmersionChange,
 }: PlayerControlsProps) {
   const isPlaying = playbackState === 'playing';
@@ -238,6 +240,7 @@ export function PlayerControls({
           <div className="flex items-center gap-2">
             <ImmersionSelector
               currentMode={immersionMode}
+              pendingMode={pendingMode}
               onModeChange={onImmersionChange}
               disabled={playbackState === 'loading'}
             />

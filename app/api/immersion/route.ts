@@ -45,19 +45,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create cache key
+    // Create cache key - Each mode has separate cached images for the same text
+    // Example: "ambient-abc123" vs "vivid-abc123" vs "theater-abc123"
     const textHash = hashText(text);
     const cacheKey = `${mode}-${textHash}`;
     
     // Check cache first
     if (imageCache.has(cacheKey)) {
       const cachedUrl = imageCache.get(cacheKey)!;
-      console.log('✨ Returning cached image for:', cacheKey);
+      console.log(`✨ Returning cached ${mode} image for text hash:`, textHash);
       return NextResponse.json({
         imageUrl: cachedUrl,
         cached: true,
+        mode,
       });
     }
+
+    console.log(`🎨 Generating NEW ${mode} image for text hash:`, textHash);
 
     // Create prompt based on text excerpt
     const textExcerpt = text.substring(0, 200);
@@ -67,25 +71,18 @@ export async function POST(request: NextRequest) {
     let height = 768;
     
     if (mode === 'ambient') {
-      prompt = `Artistic illustration of: "${textExcerpt}". Soft, elegant, minimalist style, gentle colors, serene atmosphere, highly detailed`;
+      prompt = `Artistic illustration of: "${textExcerpt}". Soft, elegant, minimalist style, gentle colors, serene atmosphere, highly detailed, suitable for text overlay`;
       width = 1024;
       height = 576; // 16:9 aspect ratio for ambient mode (divisible by 64)
     } else if (mode === 'vivid') {
-      prompt = `Cinematic scene illustrating: "${textExcerpt}". Atmospheric, dreamy, artistic style, soft lighting, highly detailed`;
+      prompt = `Cinematic scene illustrating: "${textExcerpt}". Atmospheric, dreamy, artistic style, moody lighting, rich colors, highly detailed. Note: White text will be displayed on top of this image, so ensure good contrast with darker tones and atmospheric shadows.`;
       width = 1024;
       height = 768;
     } else if (mode === 'theater') {
-      prompt = `Epic cinematic scene: "${textExcerpt}". Dramatic lighting, rich colors, movie poster style, highly detailed, photorealistic`;
+      prompt = `Epic cinematic scene: "${textExcerpt}". Dramatic lighting, rich colors, movie poster style, highly detailed, photorealistic. Note: Text will overlay this image.`;
       width = 1024;
       height = 768;
     }
-
-    console.log('🎨 Generating NEW image with Runware:', {
-      mode,
-      cacheKey,
-      promptLength: prompt.length,
-      dimensions: `${width}x${height}`,
-    });
 
     // Generate unique task UUID
     const taskUUID = crypto.randomUUID();
@@ -131,14 +128,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Cache the generated image
+    // Cache the generated image - mode-specific caching ensures each mode has unique images
     imageCache.set(cacheKey, imageURL);
-    console.log(`💾 Cached image for: ${cacheKey} (cache size: ${imageCache.size})`);
+    console.log(`💾 Cached ${mode} image for text hash: ${textHash} (total cached: ${imageCache.size})`);
 
     return NextResponse.json({
       imageUrl: imageURL,
       taskUUID,
       cached: false,
+      mode,
     });
   } catch (error) {
     console.error('Immersion API Error:', error);

@@ -154,9 +154,17 @@
   }
 }
 
-/* Smooth scrolling for the entire page */
+/* Smooth scrolling for the entire page with gentle easing */
 html {
   scroll-behavior: smooth;
+}
+
+/* Custom smooth scroll with easing for reader */
+@media (prefers-reduced-motion: no-preference) {
+  .scrollbar-hide {
+    scroll-behavior: smooth;
+    scroll-snap-type: y proximity;
+  }
 }
 
 /* Custom styles for reader components */
@@ -194,6 +202,18 @@ html {
       0 8px 32px 0 rgba(0, 0, 0, 0.4),
       inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
   }
+}
+
+/* Hide scrollbar but keep functionality */
+.scrollbar-hide {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  scroll-behavior: smooth;  /* Smooth scrolling */
+  scroll-padding-top: 2rem;  /* Add padding at top for better scroll positioning */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;  /* Chrome, Safari and Opera */
 }
 
 /* Mobile responsive adjustments */
