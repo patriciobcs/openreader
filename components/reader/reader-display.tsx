@@ -47,6 +47,9 @@ export function ReaderDisplay({ chunks, currentWordIndex }: ReaderDisplayProps) 
         <div className="text-foreground text-lg md:text-xl leading-relaxed text-justify hyphens-auto">
           {allWords.map((word, idx) => {
             const isActive = idx === currentWordIndex;
+            const isRead = idx < currentWordIndex; // Words that have been spoken
+            const isUpcoming = idx > currentWordIndex; // Words yet to be spoken
+            
             return (
               <span
                 key={`word-${idx}`}
@@ -55,6 +58,8 @@ export function ReaderDisplay({ chunks, currentWordIndex }: ReaderDisplayProps) 
                   inline-block transition-all duration-75 px-1 py-0.5 mx-0.5 rounded
                   ${isActive 
                     ? 'bg-primary text-primary-foreground font-semibold scale-105 reader-word-active' 
+                    : isRead 
+                    ? 'text-foreground/50 bg-muted/30'
                     : 'text-foreground'
                   }
                 `}
