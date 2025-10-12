@@ -1,33 +1,35 @@
 import { AudioChunk, WordInfo } from './types';
 
 /**
- * Split text into chunks of specified word count
+ * Split text into small chunks with word limit
+ * Small chunks allow better continuity with previousText/nextText
  */
 export function chunkText(text: string, wordsPerChunk: number): AudioChunk[] {
-  const words = text.trim().split(/\s+/);
+  const allWords = text.trim().split(/\s+/);
   const chunks: AudioChunk[] = [];
-  
-  for (let i = 0; i < words.length; i += wordsPerChunk) {
-    const chunkWords = words.slice(i, i + wordsPerChunk);
+  let globalWordIndex = 0;
+
+  for (let i = 0; i < allWords.length; i += wordsPerChunk) {
+    const chunkWords = allWords.slice(i, i + wordsPerChunk);
     const chunkText = chunkWords.join(' ');
-    
-    // Estimate ~15 seconds per chunk (will be updated with actual duration)
-    const estimatedDuration = 15;
+    const estimatedDuration = (chunkWords.length / 150) * 60; // ~150 words per minute
     const timestamps = generateWordTimestamps(chunkWords, estimatedDuration);
-    
+
     chunks.push({
-      id: `chunk-${i / wordsPerChunk}`,
+      id: `chunk-${Math.floor(i / wordsPerChunk)}`,
       text: chunkText,
       words: timestamps.map((ts, idx) => ({
         ...ts,
-        index: i + idx, // Global index across all chunks
+        index: globalWordIndex + idx, // Global index across all chunks
       })),
       audioUrl: null,
       duration: estimatedDuration,
       isLoading: false,
     });
+
+    globalWordIndex += chunkWords.length;
   }
-  
+
   return chunks;
 }
 
@@ -59,20 +61,37 @@ function countSyllables(word: string): number {
 /**
  * Calculate speech weight for a word based on syllables and punctuation
  * Used for more accurate timing estimation
+ * Exported for use in duration estimation and audio analysis
  */
-function getWordWeight(word: string): number {
-  const syllables = countSyllables(word);
+export function getWordWeight(word: string): number {
+  const cleanWord = word.replace(/[.,!?;:]/g, '');
+  const syllables = countSyllables(cleanWord);
   
   // Check for punctuation that causes pauses
   const hasPunctuation = /[.,!?;:]$/.test(word);
-  const pauseWeight = hasPunctuation ? 2.5 : 0; // Extra time for punctuation pause
+  let pauseWeight = 0;
+  
+  if (hasPunctuation) {
+    // Different punctuation = different pause lengths
+    if (/[.!?]$/.test(word)) {
+      pauseWeight = 3.0; // Full stop, exclamation, question
+    } else if (/[;:]$/.test(word)) {
+      pauseWeight = 2.0; // Semicolon, colon
+    } else {
+      pauseWeight = 1.5; // Comma
+    }
+  }
   
   // Check for special cases
-  const isLongWord = word.length > 10;
+  const isLongWord = cleanWord.length > 10;
   const lengthBonus = isLongWord ? 0.5 : 0;
   
+  // Very short words (articles, prepositions) are spoken faster
+  const isShortWord = cleanWord.length <= 2;
+  const shortPenalty = isShortWord ? -0.2 : 0;
+  
   // Base weight: syllable count + pause + bonus + small base time
-  return syllables + pauseWeight + lengthBonus + 0.5;
+  return Math.max(0.3, syllables + pauseWeight + lengthBonus + shortPenalty + 0.5);
 }
 
 /**
@@ -125,18 +144,42 @@ export function updateChunkWithTiming(
 }
 
 /**
- * Find current word index based on playback time
+ * Find current word index based on playback time with optimized lookahead
+ * Uses binary search for performance and smart lookahead for sync
  */
 export function getCurrentWordIndex(
   words: WordInfo[],
-  currentTime: number
+  currentTime: number,
+  playbackSpeed: number = 1.0
 ): number {
-  for (let i = 0; i < words.length; i++) {
-    if (currentTime >= words[i].startTime && currentTime < words[i].endTime) {
-      return i;
+  if (words.length === 0) return 0;
+
+  // Reduced lookahead for ElevenLabs' accurate timings
+  // 100ms is enough for display lag without jumping ahead too much
+  const LOOKAHEAD_MS = 100;
+  const adjustedTime = currentTime + (LOOKAHEAD_MS / 1000);
+
+  // Binary search for performance with many words
+  let left = 0;
+  let right = words.length - 1;
+  let result = 0;
+
+  while (left <= right) {
+    const mid = Math.floor((left + right) / 2);
+    const word = words[mid];
+
+    if (adjustedTime >= word.startTime && adjustedTime < word.endTime) {
+      return mid;
+    } else if (adjustedTime < word.startTime) {
+      right = mid - 1;
+    } else {
+      result = mid;
+      left = mid + 1;
     }
   }
-  return words.length - 1;
+
+  // Return the closest word we found
+  return Math.min(result, words.length - 1);
 }
 
 /**

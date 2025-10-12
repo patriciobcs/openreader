@@ -3,7 +3,8 @@
 import { TextInput } from './text-input';
 import { ReaderDisplay } from './reader-display';
 import { PlayerControls } from './player-controls';
-import { AudioChunk, PlaybackState } from '@/lib/types';
+import { ProviderSelector } from './provider-selector';
+import { AudioChunk, PlaybackState, TTSProvider } from '@/lib/types';
 
 interface ReaderLayoutProps {
   text: string;
@@ -13,6 +14,7 @@ interface ReaderLayoutProps {
   playbackSpeed: number;
   currentTime: number;
   totalDuration: number;
+  provider: TTSProvider;
   onTextChange: (text: string) => void;
   onUseDemo: () => void;
   onPlay: () => void;
@@ -20,6 +22,7 @@ interface ReaderLayoutProps {
   onSkipForward: () => void;
   onSkipBackward: () => void;
   onSpeedChange: (speed: number) => void;
+  onProviderChange: (provider: TTSProvider) => void;
 }
 
 export function ReaderLayout({
@@ -30,6 +33,7 @@ export function ReaderLayout({
   playbackSpeed,
   currentTime,
   totalDuration,
+  provider,
   onTextChange,
   onUseDemo,
   onPlay,
@@ -37,6 +41,7 @@ export function ReaderLayout({
   onSkipForward,
   onSkipBackward,
   onSpeedChange,
+  onProviderChange,
 }: ReaderLayoutProps) {
   const hasContent = chunks.length > 0;
   const isImmersive = hasContent;
@@ -46,33 +51,44 @@ export function ReaderLayout({
       <div className={`container mx-auto px-4 transition-all duration-500 ${
         isImmersive ? 'py-4 max-w-5xl' : 'py-8 max-w-4xl'
       }`}>
-        {/* Header - Smaller when immersive */}
-        <div className={`flex items-center justify-between transition-all duration-500 ${
-          isImmersive ? 'mb-4' : 'mb-8'
-        }`}>
-          <div className={`flex-1 text-center ${isImmersive ? 'ml-12' : ''}`}>
-            <h1 className={`font-bold tracking-tight transition-all duration-500 ${
-              isImmersive ? 'text-2xl mb-1' : 'text-4xl mb-2'
+            {/* Header - Smaller when immersive */}
+            <div className={`flex items-center justify-between transition-all duration-500 ${
+              isImmersive ? 'mb-4' : 'mb-8'
             }`}>
-              OpenReader
-            </h1>
+              <div className={`flex-1 text-center ${isImmersive ? 'ml-12' : ''}`}>
+                <h1 className={`font-bold tracking-tight transition-all duration-500 ${
+                  isImmersive ? 'text-2xl mb-1' : 'text-4xl mb-2'
+                }`}>
+                  OpenReader
+                </h1>
+                {!isImmersive && (
+                  <p className="text-muted-foreground">
+                    Transform your text into natural speech
+                  </p>
+                )}
+              </div>
+              {isImmersive && (
+                <button
+                  onClick={() => {
+                    onTextChange('');
+                  }}
+                  className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-muted"
+                >
+                  ← New Text
+                </button>
+              )}
+            </div>
+
+            {/* Provider Selector */}
             {!isImmersive && (
-              <p className="text-muted-foreground">
-                Transform your text into natural speech
-              </p>
+              <div className="flex justify-center mb-6">
+                <ProviderSelector
+                  provider={provider}
+                  onChange={onProviderChange}
+                  disabled={playbackState !== 'idle'}
+                />
+              </div>
             )}
-          </div>
-          {isImmersive && (
-            <button
-              onClick={() => {
-                onTextChange('');
-              }}
-              className="text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-1.5 rounded-md hover:bg-muted"
-            >
-              ← New Text
-            </button>
-          )}
-        </div>
 
         {/* Main Content */}
         <div className={hasContent ? 'pb-40' : 'space-y-6'}>
@@ -98,7 +114,7 @@ export function ReaderLayout({
         {/* Footer */}
         {!hasContent && (
           <div className="mt-12 text-center text-sm text-muted-foreground">
-            <p>Powered by SLNG// TTS API</p>
+            <p>Powered by ElevenLabs & SLNG TTS APIs</p>
           </div>
         )}
       </div>

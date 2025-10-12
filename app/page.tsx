@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { ReaderLayout } from '@/components/reader/reader-layout';
-import { AudioChunk } from '@/lib/types';
+import { AudioChunk, TTSProvider } from '@/lib/types';
 import { chunkText } from '@/lib/text-utils';
 import { useAudioManager } from '@/hooks/use-audio-manager';
 
@@ -12,13 +12,19 @@ One day, the king announced that he was hosting a grand ball at the palace, and 
 
 On the night of the ball, as Cinderella sat crying in the garden, her fairy godmother appeared. With a wave of her magic wand, she transformed a pumpkin into a golden carriage, mice into horses, and Cinderella's rags into a beautiful gown. But she warned Cinderella that the magic would end at midnight.`;
 
-const WORDS_PER_CHUNK = 50;
+const WORDS_PER_CHUNK = 1000; // For ElevenLabs: generate entire text as one chunk (no cuts!)
 
 export default function Home() {
   const [text, setText] = useState('');
   const [chunks, setChunks] = useState<AudioChunk[]>([]);
   const [isDemo, setIsDemo] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+  const [provider, setProvider] = useState<TTSProvider>('elevenlabs'); // Default to ElevenLabs for best accuracy
+
+  // Stable callback for chunk updates to prevent unnecessary re-renders
+  const handleChunksUpdate = useCallback((newChunks: AudioChunk[]) => {
+    setChunks(newChunks);
+  }, []);
 
   const {
     currentWordIndex,
@@ -33,8 +39,9 @@ export default function Home() {
     setSpeed,
   } = useAudioManager({
     chunks,
-    onChunksUpdate: setChunks,
+    onChunksUpdate: handleChunksUpdate,
     isDemo,
+    provider,
   });
 
   // Auto-play when chunks are loaded
@@ -63,12 +70,25 @@ export default function Home() {
     }
   }, []);
 
+  const handleProviderChange = useCallback((newProvider: TTSProvider) => {
+    console.log('Provider changed to:', newProvider);
+    setProvider(newProvider);
+    // Clear chunks to force re-fetch with new provider
+    if (chunks.length > 0) {
+      const resetChunks = chunks.map(chunk => ({
+        ...chunk,
+        audioUrl: null,
+        isLoading: false,
+      }));
+      setChunks(resetChunks);
+    }
+  }, [chunks]);
+
   const handleUseDemo = useCallback(() => {
-    console.log('Use Demo clicked');
+    console.log('🎬 Use Demo clicked');
     setText(DEMO_TEXT);
     const newChunks = chunkText(DEMO_TEXT, WORDS_PER_CHUNK);
-    console.log('Demo chunks created:', newChunks.length, 'chunks');
-    console.log('First chunk:', newChunks[0]);
+    console.log(`📝 Created ${newChunks.length} chunks of ${WORDS_PER_CHUNK} words each`);
     setChunks(newChunks);
     setIsDemo(true);
     setShouldAutoPlay(true);
@@ -83,6 +103,7 @@ export default function Home() {
       playbackSpeed={playbackSpeed}
       currentTime={currentTime}
       totalDuration={totalDuration}
+      provider={provider}
       onTextChange={handleTextChange}
       onUseDemo={handleUseDemo}
       onPlay={play}
@@ -90,6 +111,7 @@ export default function Home() {
       onSkipForward={skipForward}
       onSkipBackward={skipBackward}
       onSpeedChange={setSpeed}
+      onProviderChange={handleProviderChange}
     />
   );
 }
