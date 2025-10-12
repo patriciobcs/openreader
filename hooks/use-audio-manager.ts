@@ -511,6 +511,65 @@ export function useAudioManager({
     setPlaybackSpeed(speed);
   }, []);
 
+  const seekToWord = useCallback((wordIndex: number) => {
+    console.log('🎯 Seeking to word index:', wordIndex);
+    
+    // Find which chunk contains this word
+    let targetChunkIndex = 0;
+    let wordTimeInChunk = 0;
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const firstWordIndex = chunk.words[0]?.index || 0;
+      const lastWordIndex = chunk.words[chunk.words.length - 1]?.index || 0;
+      
+      if (wordIndex >= firstWordIndex && wordIndex <= lastWordIndex) {
+        targetChunkIndex = i;
+        // Find the word within this chunk
+        const wordInChunk = chunk.words.find(w => w.index === wordIndex);
+        if (wordInChunk) {
+          wordTimeInChunk = wordInChunk.startTime;
+        }
+        break;
+      }
+    }
+    
+    console.log(`📍 Found word in chunk ${targetChunkIndex} at time ${wordTimeInChunk.toFixed(2)}s`);
+    
+    const audio = audioRef.current;
+    if (!audio) return;
+    
+    const targetChunk = chunks[targetChunkIndex];
+    const audioUrl = audioUrlsRef.current.get(targetChunkIndex) || targetChunk?.audioUrl;
+    
+    if (audioUrl) {
+      // Load the chunk if it's different
+      if (targetChunkIndex !== currentChunkIndex) {
+        console.log(`🔄 Switching to chunk ${targetChunkIndex}`);
+        audio.src = audioUrl;
+        audio.playbackRate = playbackSpeed;
+        setCurrentChunkIndex(targetChunkIndex);
+      }
+      
+      // Seek to the word's time
+      audio.currentTime = wordTimeInChunk;
+      setCurrentWordIndex(wordIndex);
+      
+      // Start playing if not already
+      if (playbackState !== 'playing') {
+        setPlaybackState('playing');
+        audio.play().catch(err => {
+          console.error('Play error after seek:', err.message);
+          setPlaybackState('paused');
+        });
+      }
+      
+      console.log('✅ Seeked successfully');
+    } else {
+      console.warn('⚠️ Target chunk not loaded yet');
+    }
+  }, [chunks, currentChunkIndex, playbackState, playbackSpeed]);
+
   return {
     currentChunkIndex,
     currentWordIndex,
@@ -523,6 +582,7 @@ export function useAudioManager({
     skipForward,
     skipBackward,
     setSpeed,
+    seekToWord,
   };
 }
 

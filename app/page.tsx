@@ -37,6 +37,7 @@ export default function Home() {
     skipForward,
     skipBackward,
     setSpeed,
+    seekToWord,
   } = useAudioManager({
     chunks,
     onChunksUpdate: handleChunksUpdate,
@@ -112,6 +113,7 @@ export default function Home() {
       onSkipBackward={skipBackward}
       onSpeedChange={setSpeed}
       onProviderChange={handleProviderChange}
+      onWordClick={seekToWord}
     />
   );
 }

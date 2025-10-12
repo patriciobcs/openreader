@@ -8,13 +8,15 @@ import { AudioChunk, WordInfo } from '@/lib/types';
 interface ReaderDisplayProps {
   chunks: AudioChunk[];
   currentWordIndex: number;
+  onWordClick?: (wordIndex: number) => void;
 }
 
 // Individual word component with smooth sliding cursor
-const Word = memo(({ word, isActive, isRead }: { 
+const Word = memo(({ word, isActive, isRead, onClick }: { 
   word: WordInfo; 
   isActive: boolean; 
   isRead: boolean;
+  onClick?: (index: number) => void;
 }) => {
   // Debug: log when word is active
   if (isActive) {
@@ -23,7 +25,8 @@ const Word = memo(({ word, isActive, isRead }: {
   
   return (
     <span
-      className="inline-block px-1 py-0.5 mx-0.5 rounded"
+      className="inline-block px-1 py-0.5 mx-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity"
+      onClick={() => onClick?.(word.index)}
       style={{
         position: 'relative',
         fontWeight: isActive ? 600 : 400,
@@ -71,7 +74,7 @@ const Word = memo(({ word, isActive, isRead }: {
 });
 Word.displayName = 'Word';
 
-export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIndex }: ReaderDisplayProps) {
+export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIndex, onWordClick }: ReaderDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeWordRef = useRef<HTMLSpanElement>(null);
 
@@ -127,7 +130,12 @@ export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIn
                 key={`word-${word.index}`}
                 ref={isActive ? activeWordRef : null}
               >
-                <Word word={word} isActive={isActive} isRead={isRead} />
+                <Word 
+                  word={word} 
+                  isActive={isActive} 
+                  isRead={isRead}
+                  onClick={onWordClick}
+                />
               </span>
             );
           })}

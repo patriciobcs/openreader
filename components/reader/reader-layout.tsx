@@ -23,6 +23,7 @@ interface ReaderLayoutProps {
   onSkipBackward: () => void;
   onSpeedChange: (speed: number) => void;
   onProviderChange: (provider: TTSProvider) => void;
+  onWordClick?: (wordIndex: number) => void;
 }
 
 export function ReaderLayout({
@@ -42,6 +43,7 @@ export function ReaderLayout({
   onSkipBackward,
   onSpeedChange,
   onProviderChange,
+  onWordClick,
 }: ReaderLayoutProps) {
   const hasContent = chunks.length > 0;
   const isImmersive = hasContent;
@@ -107,6 +109,7 @@ export function ReaderLayout({
             <ReaderDisplay
               chunks={chunks}
               currentWordIndex={currentWordIndex}
+              onWordClick={onWordClick}
             />
           )}
         </div>
