@@ -1,36 +1,80 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# OpenReader
 
-## Getting Started
+A modern text-to-speech web application similar to ElevenReader, built with Next.js and powered by SLNG// TTS API.
 
-First, run the development server:
+## Features
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+✨ **Smart Text-to-Speech** - Convert any text into natural-sounding speech  
+📝 **Real-Time Highlighting** - See each word highlighted as it's spoken  
+⚡ **Efficient Chunking** - Process text in 50-word chunks for smooth playback  
+🎯 **Smart Pre-loading** - Next chunk loads as current one plays  
+🎮 **Playback Controls** - Adjust speed, skip forward/backward  
+💾 **Demo Caching** - Cached responses for faster demo playback  
+📱 **Responsive Design** - Works seamlessly on mobile and desktop
+
+## Quick Start
+
+1. **Install dependencies:**
+   ```bash
+   bun install
+   ```
+
+2. **Set up your API key:**
+   Create a `.env.local` file:
+   ```bash
+   SLNG_API_KEY=your_api_key_here
+   ```
+   Get your API key at [slng.ai](https://slng.ai)
+
+3. **Run the development server:**
+   ```bash
+   bun dev
+   ```
+
+4. **Open your browser:**
+   Navigate to [http://localhost:3000](http://localhost:3000)
+
+## How It Works
+
+1. Enter your text or click "Use Demo" to try the sample
+2. Click Play to start narration
+3. Watch as each word is highlighted in real-time
+4. Control playback speed and skip through the audio
+
+## Tech Stack
+
+- **Next.js 15** - React framework with App Router
+- **React 19** - UI library with modern hooks
+- **shadcn/ui** - Beautiful, accessible components
+- **Tailwind CSS** - Utility-first styling
+- **SLNG// API** - Text-to-speech engine
+- **Bun** - Fast JavaScript runtime and package manager
+
+## Documentation
+
+For detailed setup instructions, architecture details, and troubleshooting, see [SETUP.md](./SETUP.md).
+
+## Project Structure
+
+```
+├── app/
+│   ├── api/tts/          # TTS API endpoint
+│   ├── page.tsx          # Main application
+│   └── layout.tsx        # Root layout
+├── components/
+│   ├── reader/           # Reader components
+│   └── ui/               # shadcn components
+├── hooks/
+│   └── use-audio-manager.ts  # Audio playback logic
+└── lib/
+    ├── text-utils.ts     # Text processing utilities
+    └── types.ts          # TypeScript types
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## License
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+MIT
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Built with ❤️ using Next.js and SLNG// TTS API
