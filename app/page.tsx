@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { ReaderLayout } from '@/components/reader/reader-layout';
-import { AudioChunk, TTSProvider } from '@/lib/types';
+import { AudioChunk, ImmersionMode, TTSProvider } from '@/lib/types';
 import { chunkText } from '@/lib/text-utils';
 import { useAudioManager } from '@/hooks/use-audio-manager';
 
@@ -20,6 +20,9 @@ export default function Home() {
   const [isDemo, setIsDemo] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
   const [provider, setProvider] = useState<TTSProvider>('elevenlabs'); // Default to ElevenLabs for best accuracy
+  const [immersionMode, setImmersionMode] = useState<ImmersionMode>('focus');
+  const [immersionImageUrl, setImmersionImageUrl] = useState<string | null>(null);
+  const [isGeneratingImage, setIsGeneratingImage] = useState(false);
 
   // Stable callback for chunk updates to prevent unnecessary re-renders
   const handleChunksUpdate = useCallback((newChunks: AudioChunk[]) => {
@@ -66,7 +69,9 @@ export default function Home() {
       console.log('Text changed, created chunks:', newChunks.length);
       setChunks(newChunks);
       setIsDemo(false);
-      setShouldAutoPlay(true);
+      // Don't auto-play when text changes programmatically (e.g., URL fetch)
+      // User must click play button explicitly
+      setShouldAutoPlay(false);
     } else {
       setChunks([]);
       setShouldAutoPlay(false);
@@ -86,6 +91,37 @@ export default function Home() {
       setChunks(resetChunks);
     }
   }, [chunks]);
+
+  const handleImmersionChange = useCallback(async (mode: ImmersionMode) => {
+    console.log('🎨 Immersion mode changed:', mode);
+    setImmersionMode(mode);
+    
+    // Generate image for ambient/vivid/theater modes
+    if ((mode === 'ambient' || mode === 'vivid' || mode === 'theater') && text) {
+      setIsGeneratingImage(true);
+      try {
+        const response = await fetch('/api/immersion', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, mode }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setImmersionImageUrl(data.imageUrl);
+          console.log('✨ Generated immersion image:', data.imageUrl);
+        } else {
+          console.error('Failed to generate immersion image');
+        }
+      } catch (error) {
+        console.error('Error generating immersion image:', error);
+      } finally {
+        setIsGeneratingImage(false);
+      }
+    } else if (mode === 'focus') {
+      setImmersionImageUrl(null);
+    }
+  }, [text]);
 
   const handleUseDemo = useCallback(() => {
     console.log('🎬 Use Demo clicked');
@@ -118,6 +154,10 @@ export default function Home() {
       onWordClick={seekToWord}
       onSeek={seekToTime}
       loadedProgress={loadedProgress}
+      immersionMode={immersionMode}
+      immersionImageUrl={immersionImageUrl}
+      isGeneratingImage={isGeneratingImage}
+      onImmersionChange={handleImmersionChange}
     />
   );
 }

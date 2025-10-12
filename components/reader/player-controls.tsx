@@ -4,14 +4,21 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Slider } from '@/components/ui/slider';
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import {
   Play,
   Pause,
   SkipForward,
   SkipBack,
   Loader2,
+  Gauge,
 } from 'lucide-react';
-import { PlaybackState } from '@/lib/types';
+import { PlaybackState, ImmersionMode } from '@/lib/types';
 import { formatTime } from '@/lib/text-utils';
+import { ImmersionSelector } from './immersion-selector';
 
 interface PlayerControlsProps {
   playbackState: PlaybackState;
@@ -25,6 +32,8 @@ interface PlayerControlsProps {
   onSpeedChange: (speed: number) => void;
   onSeek?: (time: number) => void;
   loadedProgress?: number;
+  immersionMode?: ImmersionMode;
+  onImmersionChange?: (mode: ImmersionMode) => void;
 }
 
 const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -41,6 +50,8 @@ export function PlayerControls({
   onSpeedChange,
   onSeek,
   loadedProgress = 100,
+  immersionMode = 'focus',
+  onImmersionChange,
 }: PlayerControlsProps) {
   const isPlaying = playbackState === 'playing';
   const isLoading = playbackState === 'loading';
@@ -53,110 +64,185 @@ export function PlayerControls({
 
   const progress = totalDuration > 0 ? (currentTime / totalDuration) * 100 : 0;
 
+  // Color scheme based on immersion mode
+  const colors = immersionMode === 'focus' || immersionMode === 'ambient'
+    ? {
+        text: 'text-gray-900',
+        textMuted: 'text-gray-600',
+        buttonBase: 'text-gray-900',
+        buttonHover: 'hover:bg-transparent',
+        buttonActive: 'bg-gray-900 text-white',
+        buttonInactive: 'bg-gray-100 text-gray-900',
+        sliderBg: 'bg-gray-200',
+        sliderProgress: 'bg-gray-400',
+        popoverBg: 'bg-white',
+        popoverText: 'text-gray-900',
+      }
+    : {
+        text: 'text-white',
+        textMuted: 'text-white',
+        buttonBase: 'text-white',
+        buttonHover: 'hover:bg-white/10',
+        buttonActive: 'bg-white text-black',
+        buttonInactive: 'bg-white/10 text-white',
+        sliderBg: 'bg-white/20',
+        sliderProgress: 'bg-white/40',
+        popoverBg: 'bg-black/90',
+        popoverText: 'text-white',
+      };
+
   return (
     <div className="w-full space-y-2">
-      {/* Playback Controls - Main Row */}
-      <div className="flex items-center justify-between gap-3">
-        {/* Skip Backward */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onSkipBackward}
-          disabled={!canSkip}
-          className="h-8 w-8 hover:bg-black/5 dark:hover:bg-white/5"
-        >
-          <SkipBack className="h-3.5 w-3.5" />
-        </Button>
-
-        {/* Progress and Time */}
-        <div className="flex-1 flex items-center gap-2">
-          <span className="text-[9px] text-muted-foreground/70 w-8 text-right">{formatTime(currentTime)}</span>
-          
-          {/* Slider with loading progress */}
-          <div className="flex-1 relative">
-            {/* Background - loaded progress (YouTube-style) */}
-            <div className="absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 rounded-full bg-muted overflow-hidden pointer-events-none">
-              <div 
-                className="h-full bg-muted-foreground/30 transition-all duration-300"
-                style={{ width: `${loadedProgress}%` }}
-              />
-            </div>
-            
-            {/* Slider on top */}
-            <Slider
-              value={[currentTime]}
-              max={totalDuration || 100}
-              step={0.1}
-              disabled={isIdle}
-              onValueChange={(value) => {
-                if (onSeek && value[0] !== undefined) {
-                  onSeek(value[0]);
-                }
-              }}
-              className="relative z-10"
+      {/* Progress Slider - Full Width */}
+      <div className="flex items-center gap-2">
+        <span className={`text-xs ${colors.text} font-mono min-w-[40px]`}>
+          {formatTime(currentTime)}
+        </span>
+        
+        <div className="flex-1 relative">
+          {/* Background - loaded progress (YouTube-style) */}
+          <div className={`absolute top-1/2 -translate-y-1/2 left-0 right-0 h-1 rounded-full ${colors.sliderBg} overflow-hidden pointer-events-none`}>
+            <div 
+              className={`h-full ${colors.sliderProgress} transition-all duration-300`}
+              style={{ width: `${loadedProgress}%` }}
             />
           </div>
           
-          <span className="text-[9px] text-muted-foreground/70 w-8">{formatTime(totalDuration)}</span>
+          {/* Slider on top */}
+          <Slider
+            value={[currentTime]}
+            max={totalDuration || 100}
+            step={0.1}
+            disabled={isIdle}
+            onValueChange={(value) => {
+              if (onSeek && value[0] !== undefined) {
+                onSeek(value[0]);
+              }
+            }}
+            className="relative z-10"
+          />
         </div>
-
-        {/* Main Play Button */}
-        <Button
-          size="icon"
-          className="h-10 w-10 rounded-full shadow-md"
-          onClick={() => {
-            console.log('🎮 PLAY BUTTON CLICKED!', { isPlaying, playbackState });
-            if (isPlaying) {
-              console.log('Pausing...');
-              onPause();
-            } else {
-              console.log('Starting playback...');
-              onPlay();
-            }
-          }}
-          disabled={false}
-          title={isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Play'}
-        >
-          {isLoading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : isPlaying ? (
-            <Pause className="h-4 w-4" />
-          ) : (
-            <Play className="h-4 w-4 ml-0.5" />
-          )}
-        </Button>
-
-        {/* Skip Forward */}
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={onSkipForward}
-          disabled={!canSkip}
-          className="h-8 w-8 hover:bg-black/5 dark:hover:bg-white/5"
-        >
-          <SkipForward className="h-3.5 w-3.5" />
-        </Button>
+        
+        <span className={`text-xs ${colors.text} font-mono min-w-[40px] text-right`}>
+          {formatTime(totalDuration)}
+        </span>
       </div>
 
-      {/* Speed Control - Compact Row */}
-      <div className="flex items-center justify-center gap-1">
-        {SPEED_OPTIONS.map((speed) => (
-          <button
-            key={speed}
-            onClick={() => onSpeedChange(speed)}
-            disabled={!canChangeSpeed}
-            className={`
-              px-2 py-0.5 rounded-full text-[9px] font-medium transition-all
-              ${playbackSpeed === speed 
-                ? 'bg-primary text-primary-foreground shadow-sm' 
-                : 'bg-black/5 dark:bg-white/5 text-muted-foreground hover:bg-black/10 dark:hover:bg-white/10'
+      {/* Controls Row: Playback on Left, Immersion on Right */}
+      <div className="flex items-center justify-between gap-6">
+        {/* Left: Playback Controls */}
+        <div className="flex items-center gap-2">
+          {/* Main Play Button */}
+          <Button
+            size="icon"
+            className={`h-11 w-11 rounded-full ${colors.buttonActive} hover:opacity-90`}
+            onClick={() => {
+              if (isPlaying) {
+                onPause();
+              } else {
+                onPlay();
               }
-              disabled:opacity-40 disabled:cursor-not-allowed
-            `}
+            }}
+            disabled={isLoading}
+            title={isLoading ? 'Loading...' : isPlaying ? 'Pause' : 'Play'}
           >
-            {speed}×
-          </button>
-        ))}
+            {isLoading ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isPlaying ? (
+              <Pause className="h-4 w-4" />
+            ) : (
+              <Play className="h-4 w-4 ml-0.5" />
+            )}
+          </Button>
+
+          {/* Skip Backward */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSkipBackward}
+            disabled={!canSkip}
+            className={`h-9 w-9 ${colors.buttonBase} ${colors.buttonHover}`}
+          >
+            <SkipBack className="h-4 w-4" />
+          </Button>
+
+          {/* Skip Forward */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onSkipForward}
+            disabled={!canSkip}
+            className={`h-9 w-9 ${colors.buttonBase} ${colors.buttonHover}`}
+          >
+            <SkipForward className="h-4 w-4" />
+          </Button>
+
+          {/* Speed Control Popover */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled={!canChangeSpeed}
+                className={`h-9 w-9 ${colors.buttonBase} ${colors.buttonHover}`}
+                title={`Speed: ${playbackSpeed}×`}
+              >
+                <Gauge className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+          <PopoverContent 
+            className="w-auto p-4 border-0 rounded-xl" 
+            align="start"
+            style={
+              immersionMode === 'focus' || immersionMode === 'ambient'
+                ? {
+                    background: 'rgba(255, 255, 255, 0.95)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.1)',
+                  }
+                : {
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    backdropFilter: 'blur(20px)',
+                    WebkitBackdropFilter: 'blur(20px)',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+                  }
+            }
+          >
+            <div className="flex flex-col gap-1">
+              <div className={`text-xs font-semibold px-2 py-1 mb-1 ${colors.popoverText}`}>
+                Playback Speed
+              </div>
+              {SPEED_OPTIONS.map((speed) => (
+                <button
+                  key={speed}
+                  onClick={() => onSpeedChange(speed)}
+                  className={`
+                    px-3 py-1.5 rounded-md text-sm font-medium transition-all text-left
+                    ${playbackSpeed === speed 
+                      ? colors.buttonActive
+                      : `${colors.popoverText} ${colors.buttonHover}`
+                    }
+                  `}
+                >
+                  {speed}×
+                </button>
+              ))}
+            </div>
+          </PopoverContent>
+          </Popover>
+        </div>
+
+        {/* Right: Immersion Control */}
+        {onImmersionChange && (
+          <div className="flex items-center gap-2">
+            <ImmersionSelector
+              currentMode={immersionMode}
+              onModeChange={onImmersionChange}
+              disabled={playbackState === 'loading'}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

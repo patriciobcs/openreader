@@ -91,7 +91,7 @@ export function useAudioManager({
               
               // Play with error handling
               audio.play().catch(err => {
-                console.error('❌ Chunk transition play error:', err.message);
+                console.log('ℹ️ Playback paused during chunk transition.');
                 setPlaybackState('paused');
               });
             } else {
@@ -155,7 +155,7 @@ export function useAudioManager({
         audio.src = newSrc;
         audio.playbackRate = playbackSpeed;
         audio.play().catch(err => {
-          console.error('❌ Play error (browser restriction):', err.message);
+          console.log('ℹ️ Autoplay prevented (browser policy). User must click play.');
           // If autoplay fails, pause and let user click play
           setPlaybackState('paused');
         });
@@ -163,7 +163,7 @@ export function useAudioManager({
         // Same source but paused, resume
         console.log('▶️ Resuming playback');
         audio.play().catch(err => {
-          console.error('❌ Resume error:', err.message);
+          console.log('ℹ️ Autoplay prevented (browser policy). User must click play.');
           setPlaybackState('paused');
         });
       }
@@ -470,7 +470,7 @@ export function useAudioManager({
         await audio.play();
         console.log('✅ Playback started');
       } catch (err: any) {
-        console.error('❌ Play blocked:', err.message);
+        console.warn('⚠️ Playback blocked by browser. Please interact with the page first.');
         setPlaybackState('paused');
       }
     } else if (!currentChunk.isLoading) {
@@ -559,7 +559,7 @@ export function useAudioManager({
       if (playbackState !== 'playing') {
         setPlaybackState('playing');
         audio.play().catch(err => {
-          console.error('Play error after seek:', err.message);
+          console.log('ℹ️ Playback paused after seek. Click play to continue.');
           setPlaybackState('paused');
         });
       }
@@ -622,7 +622,7 @@ export function useAudioManager({
       if (playbackState !== 'playing') {
         setPlaybackState('playing');
         audio.play().catch(err => {
-          console.error('Play error after seek:', err.message);
+          console.log('ℹ️ Playback paused after seek. Click play to continue.');
           setPlaybackState('paused');
         });
       }

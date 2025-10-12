@@ -19,6 +19,8 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended';
 
 export type TTSProvider = 'slng' | 'elevenlabs';
 
+export type ImmersionMode = 'focus' | 'ambient' | 'vivid' | 'theater';
+
 export interface ElevenLabsAlignment {
   characters: string[];
   // Support both SDK camelCase and raw API snake_case
@@ -45,4 +47,3 @@ export interface ReaderState {
   playbackState: PlaybackState;
   playbackSpeed: number;
 }
-

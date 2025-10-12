@@ -5,24 +5,99 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { AudioChunk, WordInfo } from '@/lib/types';
 
+import { ImmersionMode } from '@/lib/types';
+
 interface ReaderDisplayProps {
   chunks: AudioChunk[];
   currentWordIndex: number;
   onWordClick?: (wordIndex: number) => void;
+  immersionMode?: ImmersionMode;
 }
 
+// Mode-specific styling configurations
+// To add a new immersion mode:
+// 1. Add the mode name to ImmersionMode type in lib/types.ts
+// 2. Add the mode preset to IMMERSION_PRESETS in components/reader/immersion-selector.tsx
+// 3. Add a new configuration object here with container, text, and cursor styles
+const IMMERSION_STYLES = {
+  focus: {
+    container: {
+      background: 'transparent',
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none',
+      boxShadow: 'none',
+    },
+    text: {
+      base: '#374151', // gray-700
+      read: '#111827', // gray-900
+      unread: '#9CA3AF', // gray-400
+    },
+    cursor: {
+      bg: '#111827', // gray-900
+      textColor: '#FFFFFF',
+    },
+  },
+  ambient: {
+    container: {
+      background: 'transparent',
+      backdropFilter: 'none',
+      WebkitBackdropFilter: 'none',
+      boxShadow: 'none',
+    },
+    text: {
+      base: '#374151', // gray-700
+      read: '#111827', // gray-900
+      unread: '#9CA3AF', // gray-400
+    },
+    cursor: {
+      bg: '#111827', // gray-900
+      textColor: '#FFFFFF',
+    },
+  },
+  vivid: {
+    container: {
+      background: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+    },
+    text: {
+      base: '#FFFFFF',
+      read: '#FFFFFF',
+      unread: 'rgba(255, 255, 255, 0.5)',
+    },
+    cursor: {
+      bg: '#FFFFFF',
+      textColor: '#000000',
+    },
+  },
+  theater: {
+    container: {
+      background: 'rgba(0, 0, 0, 0.4)',
+      backdropFilter: 'blur(20px)',
+      WebkitBackdropFilter: 'blur(20px)',
+      boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)',
+    },
+    text: {
+      base: '#FFFFFF',
+      read: '#FFFFFF',
+      unread: 'rgba(255, 255, 255, 0.5)',
+    },
+    cursor: {
+      bg: '#FFFFFF',
+      textColor: '#000000',
+    },
+  },
+};
+
 // Individual word component with smooth sliding cursor
-const Word = memo(({ word, isActive, isRead, onClick }: { 
+const Word = memo(({ word, isActive, isRead, onClick, modeStyles }: { 
   word: WordInfo; 
   isActive: boolean; 
   isRead: boolean;
   onClick?: (index: number) => void;
+  modeStyles: typeof IMMERSION_STYLES.focus;
 }) => {
-  // Debug: log when word is active
-  if (isActive) {
-    console.log('Active word:', word.text, 'index:', word.index);
-  }
-  
   return (
     <span
       className="inline-block px-1 py-0.5 mx-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity"
@@ -31,7 +106,7 @@ const Word = memo(({ word, isActive, isRead, onClick }: {
         position: 'relative',
         fontWeight: isActive ? 600 : 400,
         zIndex: 10,
-        color: isActive ? 'white' : (isRead ? 'black' : 'gray'),
+        color: isActive ? modeStyles.cursor.textColor : (isRead ? modeStyles.text.read : modeStyles.text.unread),
       }}
     >
       {isActive && (
@@ -43,8 +118,8 @@ const Word = memo(({ word, isActive, isRead, onClick }: {
             left: 0,
             right: 0,
             bottom: 0,
-            backgroundColor: 'black',
-            opacity: 0.9,
+            backgroundColor: modeStyles.cursor.bg,
+            opacity: 1,
             zIndex: -10,
           }}
           transition={{
@@ -57,7 +132,7 @@ const Word = memo(({ word, isActive, isRead, onClick }: {
       )}
       {isRead && !isActive && (
         <span 
-          className="absolute rounded bg-red-500"
+          className="absolute rounded"
           style={{
             top: 0,
             left: 0,
@@ -74,9 +149,17 @@ const Word = memo(({ word, isActive, isRead, onClick }: {
 });
 Word.displayName = 'Word';
 
-export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIndex, onWordClick }: ReaderDisplayProps) {
+export const ReaderDisplay = memo(function ReaderDisplay({ 
+  chunks, 
+  currentWordIndex, 
+  onWordClick,
+  immersionMode = 'focus' 
+}: ReaderDisplayProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeWordRef = useRef<HTMLSpanElement>(null);
+
+  // Get styles for current mode
+  const modeStyles = IMMERSION_STYLES[immersionMode];
 
   // Auto-scroll to keep active word visible (optimized)
   useEffect(() => {
@@ -88,19 +171,36 @@ export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIn
     const wordRect = wordElement.getBoundingClientRect();
     const containerRect = container.getBoundingClientRect();
     
-    // More aggressive scroll margins for better visibility
+    // In ambient mode, account for sticky image at top
+    // Smaller image: 280px max-height + 32px padding + 64px header ≈ 380px
+    const topMargin = immersionMode === 'ambient' ? 380 : 80;
+    // Increase bottom margin to account for player controls
+    const bottomMargin = immersionMode === 'ambient' ? 200 : 80;
+    
     const isVisible = 
-      wordRect.top >= containerRect.top + 80 &&
-      wordRect.bottom <= containerRect.bottom - 80;
+      wordRect.top >= containerRect.top + topMargin &&
+      wordRect.bottom <= containerRect.bottom - bottomMargin;
     
     if (!isVisible) {
-      wordElement.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-        inline: 'nearest'
-      });
+      if (immersionMode === 'ambient') {
+        // For ambient mode, scroll to position word below sticky image
+        const elementTop = wordElement.offsetTop;
+        const scrollOffset = elementTop - topMargin;
+        
+        container.scrollTo({
+          top: Math.max(0, scrollOffset),
+          behavior: 'smooth'
+        });
+      } else {
+        // For other modes, center the word
+        wordElement.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+          inline: 'nearest'
+        });
+      }
     }
-  }, [currentWordIndex]);
+  }, [currentWordIndex, immersionMode]);
 
   // Memoize flattened words to prevent unnecessary re-renders
   // This is CRITICAL - without memoization, chunks.flatMap creates a new array
@@ -112,11 +212,17 @@ export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIn
   return (
     <div
       ref={containerRef}
-      className="w-full max-w-4xl mx-auto overflow-y-auto max-h-[70vh] px-6 py-4"
+      className="w-full max-w-4xl mx-auto overflow-y-auto max-h-[65vh] px-16 rounded-xl"
+      style={{
+        ...modeStyles.container,
+        paddingTop: '3rem',
+        paddingBottom: '3rem',
+      }}
     >
         {allWords.length > 0 ? (
         <motion.div 
-          className="text-foreground text-lg md:text-xl leading-relaxed text-justify hyphens-auto"
+          className="text-lg md:text-xl leading-relaxed text-justify hyphens-auto"
+          style={{ color: modeStyles.text.base }}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3 }}
@@ -135,6 +241,7 @@ export const ReaderDisplay = memo(function ReaderDisplay({ chunks, currentWordIn
                   isActive={isActive} 
                   isRead={isRead}
                   onClick={onWordClick}
+                  modeStyles={modeStyles}
                 />
               </span>
             );
