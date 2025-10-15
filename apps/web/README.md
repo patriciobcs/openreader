@@ -59,8 +59,8 @@ OpenReader is an advanced text-to-speech platform that goes beyond simple narrat
    bun install
    ```
 
-2. **Set up your API keys in Infisical:**
-   Create a Infisical account and a project with the following API keys secreats:
+2. **Set up your API keys:**
+   Create a `.env.local` file:
    ```bash
    # Required for TTS
    SLNG_API_KEY=your_slng_api_key_here
@@ -83,8 +83,7 @@ OpenReader is an advanced text-to-speech platform that goes beyond simple narrat
 
 3. **Run the development server:**
    ```bash
-   infisical login
-   bun run dev:web
+   bun dev
    ```
 
 4. **Open your browser:**
@@ -142,8 +141,60 @@ OpenReader is an advanced text-to-speech platform that goes beyond simple narrat
 - **Queue-based processing** - Polling for long-running video generation
 - **Progressive loading** - Seamless UX with background resource loading
 
+## Project Structure
+
+```
+├── app/
+│   ├── api/
+│   │   ├── tts/          # Dual TTS provider (ElevenLabs + SLNG.AI)
+│   │   ├── immersion/    # AI image generation (Runware)
+│   │   ├── lipsync/      # AI lipsync videos (VEED Lipsync)
+│   │   ├── fabric/       # AI talking videos (VEED Fabric)
+│   │   └── linkup/       # Web content extraction
+│   ├── page.tsx          # Main application orchestration
+│   └── layout.tsx        # Root layout with metadata
+├── components/
+│   ├── reader/
+│   │   ├── reader-layout.tsx       # Main layout with immersion modes
+│   │   ├── reader-display.tsx      # Text display with word highlighting
+│   │   ├── player-controls.tsx     # Playback controls
+│   │   ├── text-input.tsx          # Text/URL input with tabs
+│   │   ├── immersion-selector.tsx  # Mode selector UI
+│   │   ├── provider-selector.tsx   # TTS provider selector
+│   │   └── share-button.tsx        # Share functionality
+│   └── ui/               # shadcn components
+├── hooks/
+│   └── use-audio-manager.ts  # Audio playback, sync, and seeking
+└── lib/
+    ├── text-utils.ts          # Text chunking and word indexing
+    ├── elevenlabs-utils.ts    # Timestamp conversion utilities
+    └── types.ts               # TypeScript type definitions
+```
+
+## Key Features Explained
+
+### Immersion Modes Architecture
+- **Focus**: Clean text-only experience with synchronized highlighting
+- **Ambient**: Sticky 16:9 images at top with auto-scrolling text
+- **Vivid**: Full-screen background images with glassmorphic text overlay
+- **Theater**: Split view - background image + small lipsync narrator video + text
+- **Cinematic**: Full-screen talking character video with text overlay at bottom
+
+### Caching Strategy
+- **Images**: In-memory Map cache (scene-based with text hash)
+- **Videos**: Dual cache - completed videos + pending request IDs
+- **Audio**: URL-based caching with analysis results
+- **URL Content**: Normalized URL caching for extracted content
+
+### Scene Management
+- Text divided into 150-word scenes
+- Progressive loading: first scene activates mode immediately
+- Background loading: subsequent scenes load while reading
+- Smart advancement: only switches scenes when resources are ready
+- Video looping: current video loops until next scene is available
+
 ## Credits
 
-Created by [@patriciobcs](https://github.com/patriciobcs) for HackBarna 2025 🏆
+Created by [@patriciobcs](https://github.com/patriciobcs) for HackBarna 🏆
 
 Built with ❤️ using Next.js, ElevenLabs, SLNG.AI, Runware, VEED.io (via fal.ai), and Linkup
